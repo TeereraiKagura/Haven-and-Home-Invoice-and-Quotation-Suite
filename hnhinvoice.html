@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Haven & Home - Invoicing Suite</title>
+    <!-- External Dependencies: In a production SDLC, these would be bundled locally for true offline capability -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap');
+
+        :root {
+            --brand-pink: #d63384;
+            --brand-dark: #1f2937;
+        }
+
+        body {
+            font-family: 'Lato', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        h1, h2, h3, .brand-font {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Toast Notification Animation */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        /* Print Specific Styles - High Fidelity */
+        @media print {
+            @page { margin: 0; size: auto; }
+            body { background: white; -webkit-print-color-adjust: exact; }
+            .no-print { display: none !important; }
+            .print-area { 
+                box-shadow: none; 
+                margin: 0; 
+                width: 100%; 
+                max-width: 100%; 
+                padding: 40px; 
+                border: none;
+            }
+            /* Force background colors for print */
+            .bg-gray-800 { background-color: #1f2937 !important; color: white !important; }
+            .bg-pink-600 { background-color: #db2777 !important; color: white !important; }
+            .text-pink-600 { color: #db2777 !important; }
+            .bg-gray-50 { background-color: #f9fafb !important; }
+        }
+
+        .paper-shadow {
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800 relative">
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 no-print"></div>
+
+    <!-- APP CONTAINER -->
+    <div class="flex flex-col md:flex-row min-h-screen">
+        
+        <!-- SIDEBAR CONTROLS (Input / Settings) -->
+        <div class="no-print w-full md:w-1/3 lg:w-1/4 bg-white border-r border-gray-200 p-6 overflow-y-auto h-screen sticky top-0 flex flex-col">
+            
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders"></i> Editor
+                </h2>
+                <button onclick="confirmReset()" class="text-xs text-red-500 hover:text-red-700 font-bold border border-red-200 hover:bg-red-50 px-2 py-1 rounded transition">
+                    <i class="fa-solid fa-rotate-right"></i> Reset
+                </button>
+            </div>
+
+            <!-- Toggle Mode -->
+            <div class="mb-6 bg-gray-100 p-1 rounded-lg flex shadow-inner">
+                <button onclick="app.setMode('quotation')" id="btn-quote" class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all bg-white shadow text-gray-800">Quotation</button>
+                <button onclick="app.setMode('invoice')" id="btn-invoice" class="flex-1 py-2 px-4 rounded-md text-sm font-semibold transition-all text-gray-500 hover:text-gray-800">Invoice</button>
+            </div>
+
+            <!-- Scrollable Settings -->
+            <div class="flex-1 space-y-5 overflow-y-auto pr-1">
+                
+                <!-- Logo & Branding -->
+                <div class="bg-gray-50 p-3 rounded border border-gray-100">
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Company Branding</label>
+                    <input type="file" id="logoInput" accept="image/*" class="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-pink-100 file:text-pink-700 hover:file:bg-pink-200 transition mb-2"/>
+                    <p class="text-[10px] text-gray-400">Supported: JPG, PNG. Saved locally.</p>
+                </div>
+
+                <!-- Financial Settings -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Currency</label>
+                        <select id="currency" data-model="currency" class="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-pink-500 outline-none bg-white">
+                            <option value="$">USD ($)</option>
+                            <option value="ZiG">ZiG</option>
+                            <option value="R">ZAR (R)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">VAT Rate (%)</label>
+                        <input type="number" id="vatRate" data-model="vatRate" value="15.5" class="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-pink-500 outline-none" step="0.1">
+                    </div>
+                </div>
+
+                <!-- Client Details -->
+                <div class="space-y-3 pt-2 border-t border-gray-100">
+                    <h3 class="font-bold text-gray-700 text-sm">Client Information</h3>
+                    <input type="text" id="clientName" data-model="clientName" placeholder="Client Name / Company" class="w-full p-2 border border-gray-300 rounded text-sm focus:border-pink-500 outline-none transition">
+                    <textarea id="clientAddress" data-model="clientAddress" placeholder="Physical Address" rows="2" class="w-full p-2 border border-gray-300 rounded text-sm focus:border-pink-500 outline-none transition"></textarea>
+                    <input type="text" id="clientPhone" data-model="clientPhone" placeholder="Phone Number" class="w-full p-2 border border-gray-300 rounded text-sm focus:border-pink-500 outline-none transition">
+                </div>
+
+                <!-- Document Details -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Doc Number</label>
+                        <input type="text" id="docNumber" data-model="docNumber" placeholder="INV-001" class="w-full p-2 border border-gray-300 rounded text-sm focus:border-pink-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Date</label>
+                        <input type="date" id="docDate" data-model="docDate" class="w-full p-2 border border-gray-300 rounded text-sm focus:border-pink-500 outline-none">
+                    </div>
+                </div>
+
+                <!-- Add Item Form -->
+                <div class="bg-gray-800 p-4 rounded-lg text-white shadow-md">
+                    <h3 class="font-bold text-pink-400 mb-3 text-sm flex justify-between">
+                        <span>Line Items</span>
+                        <i class="fa-solid fa-cart-plus"></i>
+                    </h3>
+                    <div class="space-y-2">
+                        <input type="text" id="itemDesc" placeholder="Description (e.g. Velvet Curtains)" class="w-full p-2 rounded text-sm text-gray-900 border-none focus:ring-2 focus:ring-pink-500">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="number" id="itemQty" placeholder="Qty" class="w-full p-2 rounded text-sm text-gray-900 border-none focus:ring-2 focus:ring-pink-500">
+                            <input type="number" id="itemPrice" placeholder="Price" class="w-full p-2 rounded text-sm text-gray-900 border-none focus:ring-2 focus:ring-pink-500">
+                        </div>
+                        <button onclick="app.addItem()" class="w-full bg-pink-600 hover:bg-pink-700 text-white py-2 rounded text-sm font-bold transition flex justify-center items-center gap-2 mt-2">
+                            Add Item
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="pt-4 mt-4 border-t border-gray-200 bg-white sticky bottom-0 z-10">
+                <button onclick="window.print()" class="w-full py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2 transform hover:-translate-y-1">
+                    <i class="fa-solid fa-file-pdf"></i> Generate PDF / Print
+                </button>
+            </div>
+        </div>
+
+        <!-- MAIN PREVIEW AREA -->
+        <div class="flex-1 bg-gray-200 p-4 md:p-8 flex justify-center items-start overflow-y-auto min-h-screen">
+            
+            <!-- THE PAPER -->
+            <div id="print-area" class="print-area bg-white paper-shadow w-full max-w-[210mm] min-h-[297mm] p-10 md:p-14 flex flex-col relative text-sm md:text-base">
+                
+                <!-- Header -->
+                <div class="flex justify-between items-start border-b-2 border-gray-800 pb-8 mb-8">
+                    <div class="w-7/12">
+                        <!-- Logo Section -->
+                        <div id="logoDisplay" class="mb-5 h-16 flex items-center">
+                            <!-- Default Fallback Logo -->
+                            <div class="flex items-center gap-3 group cursor-pointer" onclick="document.getElementById('logoInput').click()" title="Click to change logo">
+                                <div class="w-12 h-12 bg-pink-600 text-white rounded-full flex items-center justify-center text-xl font-bold font-serif shadow-sm">H&H</div>
+                                <div>
+                                    <h1 class="text-3xl font-bold text-gray-900 brand-font tracking-tight">Haven & Home</h1>
+                                    <p class="text-pink-600 text-sm italic font-medium">Where comfort meets design</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-gray-500 text-sm space-y-1.5 pl-1">
+                            <p class="flex items-center gap-2"><i class="fa-solid fa-location-dot w-4 text-pink-600"></i> Masvingo, Zimbabwe</p>
+                            <p class="flex items-center gap-2"><i class="fa-solid fa-phone w-4 text-pink-600"></i> 0779 537 421</p>
+                            <p class="flex items-center gap-2"><i class="fa-brands fa-facebook w-4 text-pink-600"></i> Follow us on Facebook</p>
+                        </div>
+                    </div>
+
+                    <div class="text-right w-5/12">
+                        <h2 id="docTitle" class="text-4xl font-bold text-gray-300 uppercase tracking-widest mb-4 transition-colors duration-300">QUOTATION</h2>
+                        
+                        <div class="text-gray-600 space-y-1 mb-6 text-sm">
+                            <p><strong>Ref #:</strong> <span id="displayDocNum" class="font-mono text-gray-800">---</span></p>
+                            <p><strong>Date:</strong> <span id="displayDate">---</span></p>
+                        </div>
+                        
+                        <div class="bg-gray-50 p-4 rounded-lg border-l-4 border-pink-600 text-left shadow-sm">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold mb-1 tracking-wider">Bill To:</p>
+                            <p id="displayClientName" class="font-bold text-lg text-gray-800 leading-tight">Client Name</p>
+                            <div id="displayClientAddress" class="text-gray-600 text-sm mt-1 leading-relaxed whitespace-pre-line"></div>
+                            <p id="displayClientPhone" class="text-gray-500 text-sm mt-1"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Items Table -->
+                <div class="flex-grow">
+                    <table class="w-full mb-8">
+                        <thead>
+                            <tr class="bg-gray-800 text-white uppercase text-[11px] tracking-wider text-left">
+                                <th class="py-3 px-4 rounded-l-md font-semibold">Description</th>
+                                <th class="py-3 px-2 text-center w-20 font-semibold">Qty</th>
+                                <th class="py-3 px-4 text-right w-32 font-semibold">Price</th>
+                                <th class="py-3 px-4 text-right w-32 rounded-r-md font-semibold">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsList" class="text-gray-700 text-sm">
+                            <!-- Items Injected Here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Footer / Totals -->
+                <div class="flex flex-col md:flex-row justify-between items-start mt-4 border-t-2 border-gray-100 pt-6">
+                    
+                    <!-- Terms -->
+                    <div class="w-full md:w-5/12 text-xs text-gray-500 pr-4">
+                        <h4 class="font-bold text-gray-800 mb-2 uppercase tracking-wide">Terms & Conditions</h4>
+                        <ul class="list-disc pl-4 space-y-1.5 marker:text-pink-400">
+                            <li>Quotations are valid for 14 days from date of issue.</li>
+                            <li><strong>50% deposit</strong> required to commence work on custom orders.</li>
+                            <li>Balance due strictly upon delivery or installation.</li>
+                            <li>Goods remain property of Haven & Home until paid in full.</li>
+                        </ul>
+                        
+                        <div class="mt-6 pt-4 border-t border-gray-100">
+                            <p class="font-bold text-gray-800">Banking Details:</p>
+                            <p>Bank: [Bank Name] | Acc: [123456789]</p>
+                        </div>
+                    </div>
+
+                    <!-- Calculations -->
+                    <div class="w-full md:w-6/12 mt-6 md:mt-0">
+                        <div class="bg-gray-50 rounded p-4 space-y-2">
+                            <div class="flex justify-between text-gray-600">
+                                <span class="font-medium">Subtotal</span>
+                                <span class="font-bold text-gray-800" id="displaySubtotal">0.00</span>
+                            </div>
+                            <div class="flex justify-between text-gray-500 text-xs">
+                                <span>VAT (<span id="displayVatRate">15.5</span>%)</span>
+                                <span id="displayVat">0.00</span>
+                            </div>
+                            <div class="border-t border-gray-200 my-2 pt-2 flex justify-between items-center">
+                                <span class="font-bold text-lg text-gray-800">Total Due</span>
+                                <span class="font-bold text-2xl text-pink-600" id="displayTotal">0.00</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 text-right italic text-gray-400 text-xs">
+                            Generated by Haven & Home App
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Branding -->
+                <div class="mt-auto text-center pt-8">
+                    <div class="border-t border-gray-200 w-16 mx-auto mb-4"></div>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-[0.2em]">Haven & Home Interiors &bull; Masvingo</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- APP LOGIC (Controller) -->
+    <script>
+        /**
+         * SDLC PRINCIPLE: ROBUSTNESS
+         * App uses LocalStorage to ensure data persists across reloads/power cuts.
+         * App uses a centralized state object for consistency.
+         */
+        
+        const STORAGE_KEY = 'haven_home_v2_data';
+
+        const app = {
+            // State
+            data: {
+                mode: 'quotation',
+                currency: '$',
+                vatRate: 15.5,
+                clientName: '',
+                clientAddress: '',
+                clientPhone: '',
+                docNumber: '',
+                docDate: new Date().toISOString().split('T')[0],
+                items: [],
+                logoData: null
+            },
+
+            // Initialization
+            init() {
+                this.loadState();
+                this.bindEvents();
+                this.render();
+            },
+
+            // Persistence Layer (Offline Capability)
+            saveState() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+                } catch (e) {
+                    console.error("Autosave failed (Storage full?)", e);
+                }
+            },
+
+            loadState() {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        // Merge saved data with defaults to ensure new fields are handled
+                        this.data = { ...this.data, ...parsed };
+                    } catch (e) {
+                        console.error("Corrupt save data", e);
+                    }
+                }
+            },
+
+            resetState() {
+                if(confirm("Are you sure? This will clear all current client data.")) {
+                    this.data.clientName = '';
+                    this.data.clientAddress = '';
+                    this.data.clientPhone = '';
+                    this.data.docNumber = '';
+                    this.data.items = [];
+                    this.saveState();
+                    this.render();
+                    this.showToast("Document cleared", "info");
+                }
+            },
+
+            // Core Logic
+            addItem() {
+                const descInput = document.getElementById('itemDesc');
+                const qtyInput = document.getElementById('itemQty');
+                const priceInput = document.getElementById('itemPrice');
+
+                const desc = descInput.value.trim();
+                const qty = parseFloat(qtyInput.value);
+                const price = parseFloat(priceInput.value);
+
+                // Validation
+                if (!desc) {
+                    this.showToast("Please enter a description", "error");
+                    return;
+                }
+                if (!qty || qty <= 0) {
+                    this.showToast("Quantity must be greater than 0", "error");
+                    return;
+                }
+                if (isNaN(price)) {
+                    this.showToast("Please enter a valid price", "error");
+                    return;
+                }
+
+                this.data.items.push({ desc, qty, price });
+                
+                // Clear inputs
+                descInput.value = '';
+                qtyInput.value = '';
+                priceInput.value = '';
+                descInput.focus();
+
+                this.saveState();
+                this.render();
+                this.showToast("Item added successfully", "success");
+            },
+
+            removeItem(index) {
+                this.data.items.splice(index, 1);
+                this.saveState();
+                this.render();
+            },
+
+            setMode(mode) {
+                this.data.mode = mode;
+                this.saveState();
+                this.updateModeUI();
+            },
+
+            handleInputChange(e) {
+                const field = e.target.dataset.model;
+                if (field) {
+                    this.data[field] = e.target.value;
+                    this.saveState();
+                    this.renderPreview(); // Optimize: only render text, not whole table
+                }
+            },
+
+            handleLogoUpload(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    if (file.size > 500000) { // Limit to 500KB for LocalStorage safety
+                        this.showToast("Image too large. Please use a smaller logo (<500KB)", "error");
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        this.data.logoData = event.target.result;
+                        this.saveState();
+                        this.renderLogo();
+                    }
+                    reader.readAsDataURL(file);
+                }
+            },
+
+            // Rendering (View)
+            bindEvents() {
+                // Attach listeners to all inputs with data-model attribute
+                document.querySelectorAll('[data-model]').forEach(input => {
+                    input.addEventListener('input', (e) => this.handleInputChange(e));
+                });
+                
+                document.getElementById('logoInput').addEventListener('change', (e) => this.handleLogoUpload(e));
+            },
+
+            render() {
+                // 1. Update Inputs (Syncs UI with State on Reload)
+                document.getElementById('currency').value = this.data.currency;
+                document.getElementById('vatRate').value = this.data.vatRate;
+                document.getElementById('clientName').value = this.data.clientName;
+                document.getElementById('clientAddress').value = this.data.clientAddress;
+                document.getElementById('clientPhone').value = this.data.clientPhone;
+                document.getElementById('docNumber').value = this.data.docNumber;
+                document.getElementById('docDate').value = this.data.docDate;
+
+                this.updateModeUI();
+                this.renderPreview();
+                this.renderItems();
+                this.renderLogo();
+            },
+
+            updateModeUI() {
+                const btnQuote = document.getElementById('btn-quote');
+                const btnInvoice = document.getElementById('btn-invoice');
+                const title = document.getElementById('docTitle');
+
+                if (this.data.mode === 'quotation') {
+                    this.setActiveBtn(btnQuote, btnInvoice);
+                    title.textContent = 'QUOTATION';
+                    title.className = "text-4xl font-bold text-gray-300 uppercase tracking-widest mb-4";
+                } else {
+                    this.setActiveBtn(btnInvoice, btnQuote);
+                    title.textContent = 'INVOICE';
+                    title.className = "text-4xl font-bold text-gray-800 uppercase tracking-widest mb-4";
+                }
+            },
+
+            setActiveBtn(active, inactive) {
+                active.classList.add('bg-white', 'shadow', 'text-gray-800');
+                active.classList.remove('text-gray-500');
+                inactive.classList.remove('bg-white', 'shadow', 'text-gray-800');
+                inactive.classList.add('text-gray-500');
+            },
+
+            renderPreview() {
+                const setTxt = (id, val, fallback) => document.getElementById(id).textContent = val || fallback;
+                
+                setTxt('displayClientName', this.data.clientName, 'Client Name');
+                setTxt('displayClientAddress', this.data.clientAddress, '');
+                setTxt('displayClientPhone', this.data.clientPhone, '');
+                setTxt('displayDocNum', this.data.docNumber, '---');
+                
+                if (this.data.docDate) {
+                    document.getElementById('displayDate').textContent = new Date(this.data.docDate).toLocaleDateString();
+                }
+                
+                document.getElementById('displayVatRate').textContent = this.data.vatRate;
+            },
+
+            renderItems() {
+                const tbody = document.getElementById('itemsList');
+                tbody.innerHTML = '';
+                let subtotal = 0;
+
+                if (this.data.items.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-gray-400 italic bg-gray-50 rounded mt-2 border border-dashed border-gray-200">
+                        <div class="mb-2"><i class="fa-solid fa-basket-shopping text-2xl text-gray-200"></i></div>
+                        Add items from the editor sidebar to begin...
+                    </td></tr>`;
+                } else {
+                    this.data.items.forEach((item, index) => {
+                        const total = item.qty * item.price;
+                        subtotal += total;
+
+                        const row = document.createElement('tr');
+                        row.className = "border-b border-gray-50 hover:bg-pink-50/30 group transition-colors";
+                        row.innerHTML = `
+                            <td class="py-3 px-4 relative">
+                                <span class="font-medium text-gray-800">${item.desc}</span>
+                                <button onclick="app.removeItem(${index})" class="no-print absolute left-0 top-1/2 -translate-y-1/2 -ml-2 text-red-300 hover:text-red-500 hover:bg-red-50 p-1 rounded transition opacity-0 group-hover:opacity-100" title="Remove Item">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
+                            <td class="py-3 px-2 text-center text-gray-600">${item.qty}</td>
+                            <td class="py-3 px-4 text-right text-gray-600">${this.data.currency} ${item.price.toFixed(2)}</td>
+                            <td class="py-3 px-4 text-right font-medium text-gray-800">${this.data.currency} ${total.toFixed(2)}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+
+                // Totals
+                const vatAmount = subtotal * (this.data.vatRate / 100);
+                const grandTotal = subtotal + vatAmount;
+
+                document.getElementById('displaySubtotal').textContent = `${this.data.currency} ${subtotal.toFixed(2)}`;
+                document.getElementById('displayVat').textContent = `${this.data.currency} ${vatAmount.toFixed(2)}`;
+                document.getElementById('displayTotal').textContent = `${this.data.currency} ${grandTotal.toFixed(2)}`;
+            },
+
+            renderLogo() {
+                const container = document.getElementById('logoDisplay');
+                if (this.data.logoData) {
+                    container.innerHTML = `<img src="${this.data.logoData}" alt="Company Logo" class="h-full w-auto object-contain max-h-20">`;
+                }
+            },
+
+            // UX Enhancements
+            showToast(message, type = 'info') {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                
+                // Color Logic
+                let bgClass = 'bg-gray-800';
+                let icon = 'fa-info-circle';
+                if (type === 'success') { bgClass = 'bg-green-600'; icon = 'fa-check-circle'; }
+                if (type === 'error') { bgClass = 'bg-red-600'; icon = 'fa-circle-exclamation'; }
+
+                toast.className = `toast ${bgClass} text-white px-4 py-3 rounded shadow-lg flex items-center gap-3 text-sm font-medium min-w-[250px]`;
+                toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
+                
+                container.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(-10px)';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+        };
+
+        // Helper for global scope access
+        window.confirmReset = () => app.resetState();
+
+        // Boot the app
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+
+    </script>
+</body>
+</html>
