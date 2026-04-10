@@ -1,7 +1,7 @@
 # Haven-and-Home-Invoice-and-Quotation-Suite
 A robust, offline-first web application designed to generate professional quotations and invoices instantly. Built as a single-file solution, it requires no backend or database, relying entirely on the browser for a fast and reliable experience.
 
-✨ Key Features
+ KEY FEATURES
 
 100% Offline Capable (Auto-Save): Built to withstand power cuts and internet drops. Every keystroke is automatically saved to your browser's localStorage. If you close the tab, your data will still be there when you return.
 
@@ -15,7 +15,7 @@ Print-to-PDF Optimized: Specially crafted CSS media queries ensure the user inte
 
 Zero Setup: No npm install, no servers, no databases. Just double-click and run.
 
-🚀 How to Use
+ HOW TO USE
 
 Download or clone this repository to your local machine.
 
@@ -27,7 +27,7 @@ Input client details and add your line items (e.g., Curtains, Rails, Installatio
 
 Generate: Click the "Generate PDF / Print" button at the bottom of the sidebar to save the document as a PDF or print it directly.
 
-🛠️ Built With
+BUILT WITH
 
 HTML5 - Semantic document structure.
 
