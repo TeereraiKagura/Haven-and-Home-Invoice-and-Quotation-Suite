@@ -394,6 +394,10 @@
                     this.data[field] = e.target.value;
                     this.saveState();
                     this.renderPreview(); // Optimize: only render text, not whole table
+                    // Currency and VAT change every amount, so the table and totals must be redrawn too
+                    if (field === 'currency' || field === 'vatRate') {
+                        this.renderItems();
+                    }
                 }
             },
 

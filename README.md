@@ -21,7 +21,7 @@ Haven & Home Interiors needed professional quotes and invoices without paying fo
 
 - **Quotation ↔ invoice toggle:** one click switches the document title and style.
 - **Line items** with description, quantity and price, plus validation (no empty descriptions, quantity > 0, numeric price) and toast messages instead of blocking alerts.
-- **Live totals:** subtotal, VAT and total due.
+- **Live totals:** subtotal, VAT and total due, recalculated instantly when items, currency or VAT rate change.
 - **Client details,** document number and date.
 - **Custom logo upload:** read with `FileReader` and stored locally, with a 500 KB limit to keep within browser storage.
 - **Print / Save as PDF:** a print stylesheet hides the editor and leaves only the document, including the business's terms and banking details.
@@ -53,7 +53,6 @@ an internet connection** for styling. Data entry and saving work without one.
 
 ## What I'd improve next
 
-- **Recalculate totals immediately when the currency or VAT rate changes.** Today the line totals refresh on the next item change or reload.
 - **Escape item descriptions** before inserting them as HTML.
 - **Bundle the CSS and icons** so the app is fully offline from the first open, and make it an installable PWA.
 - **Auto-number documents** (Q-2026-001, INV-2026-001) and keep a history of past quotes.
